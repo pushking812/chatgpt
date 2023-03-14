@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	cc "github.com/pushking812/workout/chatgpt/chat-complete"
-	tt "github.com/pushking812/workout/chatgpt/gpt-speech-to-text"
+	cc "github.com/pushking812/chatgpt/gpt/chat-complete"
+	tt "github.com/pushking812/chatgpt/gpt/speech-to-text"
 	"github.com/spf13/cobra"
 )
 

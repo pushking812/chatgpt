@@ -1,4 +1,4 @@
-package gptspeachtotext
+package speechtotext
 
 import (
 	"context"
