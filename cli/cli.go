@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/pushking812/chatgpt/gpt"
 	cc "github.com/pushking812/chatgpt/gpt/chat-complete"
 	tt "github.com/pushking812/chatgpt/gpt/speech-to-text"
 	"github.com/spf13/cobra"
@@ -24,10 +24,10 @@ func main() {
 		panic("Missing API KEY")
 	}
 
-	answerCh := make(chan string)
-	errCh := make(chan error)
+	chatRequest := gpt.NewRequestType(cc.GetAnswer, apiKey, "15s")
+	sttRequest := gpt.NewRequestType(tt.GetAnswer, apiKey, "15s")
 
-	var h handler
+	history := []string{}
 
 	rootCmd := &cobra.Command{
 		Use:   "chatgpt",
@@ -36,6 +36,7 @@ func main() {
 			scanner := bufio.NewScanner(os.Stdin)
 			quit := false
 			speech := false
+			answer := ""
 
 			fmt.Println("Type your question to ChatGPT or `speech` to set speech-to-text mod (type `quit` to exit)")
 
@@ -52,43 +53,39 @@ func main() {
 				}
 
 				question := scanner.Text()
-				questionParam := validateQuestion(question)
+				//questionParam := validateQuestion(question)
 
-				switch questionParam {
+				switch question {
 				case "quit":
 					quit = true
+
+					fmt.Println("\nHistory:")
+					for i, v := range history {
+						fmt.Printf("\n#%d\n%v\n", i+1, v)
+					}
+
 				case "speech":
 					speech = true
 				case "", " ":
 					speech = false
 				default:
-					h = cc.GetAnswer
-
+					var err error
 					if speech {
-						h = tt.GetAnswer
+						answer, err = sttRequest.SendRequest(question)
+					} else {
+						answer, err = chatRequest.SendRequest(question)
 					}
 
-					go func() {
-						answer, err := h(apiKey, question)
-						if err != nil {
-							errCh <- err
-						} else {
-							answerCh <- answer
-						}
-					}()
-
-					for done := false; !done; {
-						select {
-						case answer := <-answerCh:
-							fmt.Printf("output: %s\n", answer)
-							done = true
-						case err := <-errCh:
-							fmt.Println("Error:", err)
-							done = true
-						default:
-							time.Sleep(100 * time.Millisecond)
-						}
+					if err != nil {
+						fmt.Println("error:", err)
 					}
+
+					answer = strings.ReplaceAll(answer, "\n", "")
+					answer = strings.ReplaceAll(answer, "\r", "")
+
+					history = append(history, "question: "+question+"\nanswer: "+answer)
+
+					fmt.Printf("output: %s\n", answer)
 				}
 			}
 		},
@@ -97,15 +94,13 @@ func main() {
 	log.Fatal(rootCmd.Execute())
 }
 
-type handler = func(apikey, question string) (string, error)
-
-func validateQuestion(question string) string {
-	quest := strings.Trim(question, " ")
-	keywords := []string{"", " "}
-	for _, x := range keywords {
-		if quest == x {
-			return ""
-		}
-	}
-	return quest
-}
+// func validateQuestion(question string) string {
+// 	quest := strings.Trim(question, " ")
+// 	keywords := []string{"", " "}
+// 	for _, x := range keywords {
+// 		if quest == x {
+// 			return ""
+// 		}
+// 	}
+// 	return quest
+// }

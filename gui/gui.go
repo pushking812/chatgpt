@@ -13,14 +13,12 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/pushking812/chatgpt/gpt"
 	cc "github.com/pushking812/chatgpt/gpt/chat-complete"
 	tt "github.com/pushking812/chatgpt/gpt/speech-to-text"
 )
 
 func main() {
-	answerCh := make(chan string)
-	errCh := make(chan error)
-
 	myApp := app.New()
 	myWindow := myApp.NewWindow("ChatGPT")
 
@@ -45,6 +43,9 @@ func main() {
 		return
 	}
 
+	chatRequest:=gpt.NewRequestType(cc.GetAnswer, apiKey, "10s")
+	sttRequest:=gpt.NewRequestType(tt.GetAnswer, apiKey, "10s")
+
 	// UI elements
 	questionEntry := widget.NewEntry()
 	questionEntry.SetPlaceHolder("Type your question here")
@@ -65,9 +66,8 @@ func main() {
 					defer reader.Close()
 
 					fmt.Println("Selected file:", reader.URI().Path())
-					question = reader.URI().Path()
 
-					answer, err = quest(tt.GetAnswer, apiKey, question, answerCh, errCh)
+					answer, err = sttRequest.SendRequest(reader.URI().Path())
 					if err != nil {
 						answerLabel.SetText(err.Error())
 					}
@@ -89,7 +89,7 @@ func main() {
 			return
 		default:
 			var err error
-			answer, err = quest(cc.GetAnswer, apiKey, question, answerCh, errCh)
+			answer, err = chatRequest.SendRequest(question)
 			if err != nil {
 				answerLabel.SetText(err.Error())
 			}
@@ -111,33 +111,9 @@ func main() {
 	time.Sleep(500 * time.Millisecond)
 }
 
-func quest(h handler, apiKey string, question string, answerCh chan string, errCh chan error) (string, error) {
-	go func() {
-		answer, err := h(apiKey, question)
-		if err != nil {
-			errCh <- err
-		} else {
-			answerCh <- answer
-		}
-	}()
-
-	for {
-		select {
-		case answer := <-answerCh:
-			return answer, nil
-		case err := <-errCh:
-			return "", fmt.Errorf("error: %s", err)
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-}
-
 type NullWriter int
 
 func (NullWriter) Write([]byte) (int, error) { return 0, nil }
-
-type handler = func(apikey, question string) (string, error)
 
 func validateQuestion(question string) string {
 	quest := strings.Trim(question, " ")

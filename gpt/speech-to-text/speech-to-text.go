@@ -8,14 +8,19 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func GetAnswer(apiKey, filename string) (string, error) {
+func GetAnswer(apiKey, filename, t string) (string, error) {
 	if apiKey == "" || filename == "" {
 		panic("API or filename value is empty")
 	}
 
 	c := openai.NewClient(apiKey)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	timeout, err := time.ParseDuration(t)
+	if err != nil {
+		return "", err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	req := openai.AudioRequest{

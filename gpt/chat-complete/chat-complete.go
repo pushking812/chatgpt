@@ -8,12 +8,17 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func GetAnswer(apiKey, msg string) (string, error) {
+func GetAnswer(apiKey, msg, t string) (string, error) {
 	if apiKey == "" || msg == "" {
 		panic("Missing API KEY or message empty")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	timeout, err := time.ParseDuration(t)
+	if err != nil {
+		return "", err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	client := openai.NewClient(apiKey)
